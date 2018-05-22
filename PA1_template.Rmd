@@ -1,0 +1,84 @@
+---
+title: "PA1_template.Rmd"
+output: md_document
+---
+
+---
+title: "Reproducible Research, Mid-course Project"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+library(lubridate)
+library(ggplot2)
+dat <- read.csv("activity.csv",header=TRUE)
+```
+
+##What is the mean total number of steps taken per day?
+```{r}
+s <- with(dat,aggregate(steps~date,FUN=sum))
+qplot(s$steps,geom="histogram")
+```
+
+This is a histogram of the total number of steps taken per day. The mean number of steps taken is `r as.integer(mean(s$steps))`, and the median number of steps taken is `r median(s$steps)`.
+
+##What is the average daily activity pattern?
+```{r}
+m <- with(dat,aggregate(steps~interval,FUN=mean))
+qplot(m$interval,m$steps)
+```
+
+This is a time series of the average number of steps taken during each time interval. The interval with the maximum steps taken on average is interval `r m$interval[which(m$steps==max(m$steps))]`.
+
+##Imputing missing values
+
+```{r}
+nas <- sum(is.na(dat$steps))
+```
+
+There are `r nas` missing values. To fill in the missing values, we can replace them with the average number of steps taken in each interval.
+
+```{r}
+nas_filled <- dat
+for(i in 1:length(nas_filled$steps)){
+  if(is.na(nas_filled$steps[i])){
+    interval <- nas_filled$interval[i]
+    avg_steps <- m$steps[which(m$interval==interval)]
+    nas_filled$steps[i] <- avg_steps
+  }
+}
+new_s <- with(nas_filled,aggregate(steps~date,FUN=sum))
+qplot(new_s$steps,geom="histogram")
+```
+
+The new mean steps per day is `r as.integer(round(mean(new_s$steps)))`, and the new median steps per day is `r as.integer(round(median(new_s$steps)))`. This is not significantly different than before the adjustment. By adding these missing values, the curve of the histogram plot becomes more smoothed-out. 
+
+##Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+nas_filled$weekday <- wday(nas_filled$date)
+for(i in 1:length(nas_filled$weekday)){
+  if(nas_filled$weekday[i]==1){
+    nas_filled$weekday[i] <- "Weekend"
+  }
+  else if(nas_filled$weekday[i]==7){
+    nas_filled$weekday[i] <- "Weekend"
+  }
+  else{
+    nas_filled$weekday[i] <- "Weekday"
+  }
+}
+#split data into weekdays,weekends
+#aggregate by interval
+dat_weekdays <- nas_filled[which(nas_filled$weekday=="Weekday"),]
+dat_weekend <- nas_filled[which(nas_filled$weekday=="Weekend"),]
+avg_weekdays <- with(dat_weekdays,aggregate(steps~interval,FUN=mean))
+avg_weekend <- with(dat_weekend,aggregate(steps~interval,FUN=mean))
+par(mfrow=c(1,2))
+plot(avg_weekdays$interval,avg_weekdays$steps)
+plot(avg_weekend$interval,avg_weekend$steps)
+
+```
+
+There are some differences in activity during weekdays and weekends.
